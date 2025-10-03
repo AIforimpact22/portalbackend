@@ -2,6 +2,7 @@
 import os, secrets, hmac
 from dotenv import load_dotenv
 from urllib.parse import urljoin, urlparse, quote_plus
+from typing import Optional
 from functools import wraps
 from threading import local as _thread_local
 
@@ -18,8 +19,16 @@ IS_SERVERLESS = bool(os.environ.get("GAE_ENV") or os.environ.get("K_SERVICE"))
 DEFAULT_UPLOAD_DIR = "/tmp/uploads" if IS_SERVERLESS else os.path.join(BASE_DIR, "uploads")
 os.makedirs(DEFAULT_UPLOAD_DIR, exist_ok=True)
 
+def _normalize_postgres_scheme(url: Optional[str]) -> Optional[str]:
+    """Ensure SQLAlchemy URLs use the psycopg v3 driver when targeting Postgres."""
+    if not url:
+        return url
+    return url.replace("postgresql+psycopg2", "postgresql+psycopg")
+
+
 def get_database_url():
-    return os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'app.db')}")
+    raw = os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'app.db')}")
+    return _normalize_postgres_scheme(raw)
 
 def flask_settings():
     return {
@@ -57,7 +66,7 @@ def _build_customers_url_from_env():
     # 1) Preferred: CUSTOMERS_DATABASE_URL
     url = os.environ.get("CUSTOMERS_DATABASE_URL")
     if url:
-        return url
+        return _normalize_postgres_scheme(url)
 
     # 2) Assemble from CUSTOMERS_* (fallback to generic DB_* and INSTANCE_CONNECTION_NAME)
     user = os.environ.get("CUSTOMERS_DB_USER") or os.environ.get("DB_USER")
@@ -70,7 +79,7 @@ def _build_customers_url_from_env():
 
     # Some deployments repurpose *_INSTANCE_CONNECTION_NAME to hold a full DSN.
     if inst and "://" in inst:
-        return inst
+        return _normalize_postgres_scheme(inst)
 
     if user and pwd and name and host:
         return f"postgresql+psycopg://{user}:{quote_plus(pwd)}@{host}:5432/{name}"
@@ -81,7 +90,7 @@ def _build_customers_url_from_env():
     # 3) Fall back to the primary DATABASE_URL when nothing else is configured
     primary_url = os.environ.get("DATABASE_URL")
     if primary_url:
-        return primary_url
+        return _normalize_postgres_scheme(primary_url)
 
     return None
 
