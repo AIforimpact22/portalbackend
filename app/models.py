@@ -240,9 +240,9 @@ class Expense(Base):
     description = Column(Text, default="")
     currency = Column(String(8), nullable=False, default="EUR")
     vat_rate = Column(Numeric(5, 2), nullable=False, default=21.00)
-    amount_net = Column(Numeric(12, 2), nullable=False, default=0)
-    vat_amount = Column(Numeric(12, 2), nullable=False, default=0)
-    amount_gross = Column(Numeric(12, 2), nullable=False, default=0)
+    amount_net = Column(TextDecimal(12, 2), nullable=False, default=0)
+    vat_amount = Column(TextDecimal(12, 2), nullable=False, default=0)
+    amount_gross = Column(TextDecimal(12, 2), nullable=False, default=0)
     receipt_path = Column(String(256))
 
     invoice_id = Column(BigInteger, ForeignKey("invoices.id"), nullable=True)
