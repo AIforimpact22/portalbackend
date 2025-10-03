@@ -73,10 +73,10 @@ def _build_customers_url_from_env():
         return inst
 
     if user and pwd and name and host:
-        return f"postgresql+psycopg2://{user}:{quote_plus(pwd)}@{host}:5432/{name}"
+        return f"postgresql+psycopg://{user}:{quote_plus(pwd)}@{host}:5432/{name}"
     if user and pwd and name and inst:
         # App Engine Unix socket
-        return f"postgresql+psycopg2://{user}:{quote_plus(pwd)}@/{name}?host=/cloudsql/{inst}"
+        return f"postgresql+psycopg://{user}:{quote_plus(pwd)}@/{name}?host=/cloudsql/{inst}"
 
     # 3) Fall back to the primary DATABASE_URL when nothing else is configured
     primary_url = os.environ.get("DATABASE_URL")
