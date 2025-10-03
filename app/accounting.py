@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import os
 
-from sqlalchemy import select
+from sqlalchemy import Date, cast, select
 from dateutil.relativedelta import relativedelta
 
 from .models import CompanySettings, InvoiceSequence, Invoice, InvoiceLine, Payment, Expense
@@ -112,7 +112,12 @@ def vat_summary(db, year: int, quarter: int):
             vat_out += dec(line.line_vat)
 
     vat_in = Decimal("0.00")
-    exps = db.execute(select(Expense).where(Expense.date >= q_start, Expense.date <= q_end)).scalars().all()
+    exps = db.execute(
+        select(Expense).where(
+            cast(Expense.date, Date) >= q_start,
+            cast(Expense.date, Date) <= q_end,
+        )
+    ).scalars().all()
     for e in exps:
         vat_in += dec(e.vat_amount)
 
