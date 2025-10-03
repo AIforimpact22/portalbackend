@@ -1,8 +1,24 @@
 # app/models_customers.py
+"""SQLAlchemy models for the read-only customers database."""
+
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import (
-    Column, BigInteger, String, Integer, Text, Boolean, DateTime
+    Column,
+    BigInteger,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    Boolean,
+    DateTime,
+    ARRAY,
+    PrimaryKeyConstraint,
 )
+
+try:  # pragma: no cover - only available when PostgreSQL dialect installed
+    from sqlalchemy.dialects.postgresql import INET
+except Exception:  # Fallback for SQLite/unit tests where INET isn't available
+    from sqlalchemy import String as INET  # type: ignore
 
 # Separate Base so create_all for your main DB won't touch the customers schema
 CustomersBase = declarative_base()
@@ -80,3 +96,126 @@ class Registration(CustomersBase):
         if self.middle_name:
             return f"{self.first_name} {self.middle_name} {self.last_name}".strip()
         return f"{self.first_name} {self.last_name}".strip()
+
+
+class ActivityLog(CustomersBase):
+    __tablename__ = "activity_log"
+
+    id = Column(BigInteger, primary_key=True)
+    user_id = Column(Integer, nullable=False)
+    course_id = Column(Integer, nullable=False)
+    lesson_uid = Column(Text)
+    a_type = Column(String(64))
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    score_points = Column(Text)
+    passed = Column(Boolean)
+    payload = Column(Text)
+
+
+class Course(CustomersBase):
+    __tablename__ = "courses"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(Text, nullable=False)
+    created_by = Column(Integer)
+    is_published = Column(Boolean, nullable=False, default=False)
+    published_at = Column(DateTime(timezone=True))
+    structure = Column(Text)
+    created_at = Column(DateTime(timezone=True))
+    conversation = Column(Text)
+
+
+class Enrollment(CustomersBase):
+    __tablename__ = "enrollments"
+
+    user_id = Column(Integer, nullable=False)
+    course_id = Column(Integer, nullable=False)
+    status = Column(String(32))
+    enrolled_at = Column(DateTime(timezone=True))
+    progress = Column(Text)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("user_id", "course_id", name="enrollments_pkey"),
+    )
+
+
+class ExamCache(CustomersBase):
+    __tablename__ = "exam_cache"
+
+    exam_id = Column(Text, primary_key=True)
+    course_id = Column(Integer, nullable=False)
+    week = Column(SmallInteger)
+    content_sha256 = Column(Text)
+    payload = Column(Text)
+    created_at = Column(DateTime(timezone=True))
+
+
+class RegistrationProgress(CustomersBase):
+    __tablename__ = "registration_progress"
+
+    id = Column(BigInteger, primary_key=True)
+    course_id = Column(Integer, nullable=False)
+    max_unlocked_index = Column(Integer)
+    last_lesson_uid = Column(Text)
+    last_seen_at = Column(DateTime(timezone=True))
+
+
+class Subscription(CustomersBase):
+    __tablename__ = "subscriptions"
+
+    id = Column(BigInteger, primary_key=True)
+    email = Column(String(255), nullable=False)
+    plan_code = Column(String(64))
+    status = Column(String(32))
+    source = Column(String(64))
+    double_opt_in_token = Column(Text)
+    confirmed_at = Column(DateTime(timezone=True))
+    unsubscribed_at = Column(DateTime(timezone=True))
+    reason_unsub = Column(Text)
+    consent_marketing = Column(Boolean)
+    locale = Column(String(16))
+    ip_signup = Column(INET)
+    user_agent_signup = Column(Text)
+    tags = Column(ARRAY(Text))
+    created_at = Column(DateTime(timezone=True))
+    updated_at = Column(DateTime(timezone=True))
+
+
+class AllowedUser(CustomersBase):
+    __tablename__ = "allowed_users"
+
+    email = Column(String(255), primary_key=True)
+    role = Column(String(64))
+    page_access = Column(Text)
+    created_at = Column(DateTime(timezone=True))
+
+
+class UserModuleRule(CustomersBase):
+    __tablename__ = "user_module_rules"
+
+    email = Column(String(255), primary_key=True)
+    course_id = Column(Integer, primary_key=True)
+    allowed_modules = Column(Text)
+    updated_at = Column(DateTime(timezone=True))
+
+    __table_args__ = (
+        PrimaryKeyConstraint("email", "course_id", name="user_module_rules_pkey"),
+    )
+
+
+class UserPageRule(CustomersBase):
+    __tablename__ = "user_page_rules"
+
+    email = Column(String(255), primary_key=True)
+    page_access = Column(Text)
+    updated_at = Column(DateTime(timezone=True))
+
+
+class CustomerUser(CustomersBase):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(255), nullable=False)
+    full_name = Column(String(255))
+    role = Column(String(64))
+    created_at = Column(DateTime(timezone=True))
