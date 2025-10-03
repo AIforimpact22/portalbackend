@@ -31,14 +31,22 @@ def register(app):
 
         vat = vat_summary(db, today.year, ((today.month - 1)//3)+1)
         recent_invoices = db.execute(select(Invoice).order_by(Invoice.issue_date.desc()).limit(6)).scalars().all()
-        recent_expenses = db.execute(select(Expense).order_by(Expense.date.desc()).limit(6)).scalars().all()
-        recent_payments = (
+        raw_expenses = db.execute(select(Expense).order_by(Expense.date.desc()).limit(6)).scalars().all()
+        recent_expenses = [
+            (expense, dec(expense.amount_gross))
+            for expense in raw_expenses
+        ]
+        raw_payments = (
             db.execute(
                 select(Payment).order_by(cast(Payment.date, Date).desc()).limit(6)
             )
             .scalars()
             .all()
         )
+        recent_payments = [
+            (payment, dec(payment.amount))
+            for payment in raw_payments
+        ]
 
         return render("dashboard.html",
             csrf_token=csrf_token(), company=company,
