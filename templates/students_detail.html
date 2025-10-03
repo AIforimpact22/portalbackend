@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Student Detail — {{ name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="d-flex align-items-center mt-3">
+    <h2 class="me-3">Student</h2>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('students', course_id=course_id) }}">
+      ← Back to course {{ course_id }}
+    </a>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-body">
+      <h5 class="card-title mb-1">{{ name }}</h5>
+      <div class="text-muted">
+        User #{{ user_id }} &nbsp;•&nbsp;
+        Course {{ course_id }} — {{ course_title }}
+        {% if email %}&nbsp;•&nbsp;<a href="mailto:{{ email }}">{{ email }}</a>{% endif %}
+        {% if enrollment_status %}&nbsp;•&nbsp;<span class="badge bg-secondary">{{ enrollment_status }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive mt-3">
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th style="width: 200px;">When (UTC)</th>
+          <th>Lesson</th>
+          <th style="width: 120px;">Kind</th>
+          <th style="width: 160px;">Summary</th>
+          <th>Payload</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ev in timeline %}
+        <tr>
+          <td>{{ ev.created_at.strftime("%Y-%m-%d %H:%M:%S") if ev.created_at else "—" }}</td>
+          <td>
+            {% if ev.section_title %}
+              <div class="text-muted small">{{ ev.section_title }}</div>
+            {% endif %}
+            {{ ev.lesson_title }}
+            {% if ev.lesson_uid %}<span class="text-muted small">(<code>{{ ev.lesson_uid }}</code>)</span>{% endif %}
+          </td>
+          <td><span class="badge bg-info text-dark">{{ ev.kind }}</span></td>
+          <td>{{ ev.summary }}</td>
+          <td><pre class="mb-0 small">{{ ev.raw_payload | tojson(indent=0) }}</pre></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if not timeline %}
+    <div class="alert alert-info mt-3">
+      No events found for this student in this course.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

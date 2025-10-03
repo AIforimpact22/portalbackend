@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Welcome • {{ company.name if company else "Ai For Impact" }}{% endblock %}
+{% block content %}
+<div style="max-width: 920px; margin: 24px auto; padding: 0 12px;">
+  <div style="background:#fff; border:1px solid #e8e8e8; border-radius:12px; box-shadow:0 8px 22px rgba(0,0,0,.06); padding:24px;">
+    <div style="display:flex; align-items:center; gap:16px; margin-bottom:10px;">
+      <img src="https://i.imgur.com/STm5VaG.png" alt="Ai For Impact logo" style="height:48px;border-radius:8px;background:#fff;">
+      <div>
+        <h2 style="margin:0;">Ai For Impact</h2>
+        <div style="color:#6d6d6d;">Choose how you want to continue</div>
+      </div>
+    </div>
+    <hr style="border:0;height:1px;background:#eee;margin:12px 0 20px;">
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+      <a href="{{ url_for('course_index') }}"
+         style="text-decoration:none;border:1px solid #000;background:#000;color:#fff;padding:14px 16px;border-radius:10px;font-weight:800;text-align:center;">
+        Course sign in
+      </a>
+      <a href="{{ url_for('login') }}"
+         style="text-decoration:none;border:1px solid #000;background:#fff;color:#000;padding:14px 16px;border-radius:10px;font-weight:800;text-align:center;">
+        Admin sign in
+      </a>
+    </div>
+    <div style="margin-top:18px;color:#6d6d6d;">Powered by <strong>Climate Fundraising Platform B.V.</strong></div>
+  </div>
+</div>
+{% endblock %}

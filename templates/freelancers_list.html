@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Freelancer Payouts · BV Management{% endblock %}
+{% block content %}
+  <div class="h1">Freelancer Payouts</div>
+  <div class="row section">
+    <a class="card" href="{{ url_for('freelancer_new_page') }}" style="padding:10px 14px">+ New Payout</a>
+  </div>
+
+  <div class="card section">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Freelancer</th>
+          <th>Gross</th>
+          <th>Method</th>
+          <th>Reference</th>
+          <th>Invoice</th>
+          <th>Receipt</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in payouts %}
+          <tr>
+            <td>{{ p.date }}</td>
+            <td>{{ p.vendor }}</td>
+            <td>€ {{ '%.2f'|format(p.amount_gross) }}</td>
+            <td>{{ p.pay_method or '—' }}</td>
+            <td>{{ p.pay_reference or '—' }}</td>
+            <td>
+              {% if p.invoice_id and invoices.get(p.invoice_id) %}
+                <a href="{{ url_for('invoice_detail', invoice_id=p.invoice_id) }}">{{ invoices[p.invoice_id].invoice_no }}</a>
+              {% else %}
+                <span class="mut">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if p.receipt_path %}
+                <a href="{{ url_for('uploaded_file', filename=p.receipt_path) }}">View</a>
+              {% else %}
+                <span class="mut">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        {% if not payouts %}
+          <tr><td colspan="7"><span class="mut">No freelancer payouts yet.</span></td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

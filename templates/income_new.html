@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Record Income · BV Management{% endblock %}
+
+{% block content %}
+  <div class="h1">Record Income</div>
+
+  <form method="post" action="{{ url_for('add_income') }}" class="card section" id="incomeForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="invoice_id" id="invoice_id" value="{{ inv_pre.id if inv_pre else '' }}">
+
+    <!-- From Invoice (optional) -->
+    <div class="card" style="margin-bottom:12px; overflow:hidden">
+      <div class="h2">From Invoice (optional)</div>
+      <div class="row" style="gap:8px; align-items:flex-end; flex-wrap:wrap">
+        <div style="min-width:260px; flex:2">
+          <label>Search invoice (number or client)</label>
+          <input type="text" id="invSearch" placeholder="Start typing… (min 2 chars)">
+        </div>
+        <div id="invSelected" class="mut" style="min-height:1.5em">
+          {% if inv_pre %}
+            Selected: {{ inv_pre.invoice_no }} · {{ inv_pre.client_name }} · {{ inv_pre.currency }} {{ inv_pre.outstanding }} due ({{ inv_pre.status }})
+          {% endif %}
+        </div>
+        <div style="margin-left:auto">
+          <label class="row" style="gap:6px; align-items:center">
+            <input type="checkbox" name="close_invoice" id="close_invoice" checked>
+            <span>Close invoice after saving</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="invResults" class="results"></div>
+    </div>
+
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div><label>Date</label><input type="date" name="date" required></div>
+      <div><label>Amount</label>
+        <input type="number" step="0.01" name="amount" id="amount" required
+               value="{{ amount_default or '' }}">
+      </div>
+      <div>
+        <label>Method</label>
+        <select name="method">
+          <option value="bank">Bank</option>
+          <option value="western_union">Western Union</option>
+          <option value="cash">Cash</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div><label>Reference</label><input name="reference" placeholder="Bank/WU ref"></div>
+      <div style="grid-column:1 / span 2"><label>Note</label><input name="note" placeholder="Optional"></div>
+    </div>
+
+    <div class="row right section"><button>Save Income</button></div>
+  </form>
+
+  <style>
+    #invResults { margin-top:10px; display:grid; gap:8px; }
+    .inv-card { border:1px solid #e5e7eb; border-radius:8px; padding:10px; display:flex; align-items:center; gap:10px; }
+    .inv-main { min-width:0; flex:1; }
+    .inv-title { font-weight:600; overflow-wrap:anywhere; }
+    .inv-sub { color:#6b7280; font-size:12px; overflow-wrap:anywhere; }
+    .inv-actions { display:flex; gap:6px; }
+  </style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ------- Invoice selector -------
+  const invSearch   = document.getElementById('invSearch');
+  const invResults  = document.getElementById('invResults');
+  const invSelected = document.getElementById('invSelected');
+  const invoiceId   = document.getElementById('invoice_id');
+  const amountField = document.getElementById('amount');
+  const closeBox    = document.getElementById('close_invoice');
+
+  function clearResults(){ invResults.innerHTML = ''; }
+  function setSelected(inv){
+    invoiceId.value = inv ? inv.id : '';
+    if(inv){
+      invSelected.textContent = `Selected: ${inv.invoice_no} · ${inv.client_name} · ${inv.currency} ${(+inv.outstanding).toFixed(2)} due (${inv.status})`;
+      // Default the amount to the outstanding due
+      if(inv.outstanding !== undefined && inv.outstanding !== null){
+        amountField.value = (+inv.outstanding).toFixed(2);
+      }
+      // Default: close invoice checked
+      closeBox.checked = true;
+    } else {
+      invSelected.textContent = '';
+    }
+  }
+  function renderList(items){
+    clearResults();
+    items.forEach(inv => {
+      const card = document.createElement('div');
+      card.className = 'inv-card';
+
+      const main = document.createElement('div');
+      main.className = 'inv-main';
+      const title = document.createElement('div');
+      title.className = 'inv-title';
+      title.textContent = inv.label || `${inv.invoice_no} · ${inv.client_name}`;
+      const sub = document.createElement('div');
+      sub.className = 'inv-sub';
+      const due = (inv.outstanding !== null && inv.outstanding !== undefined) ? (+inv.outstanding).toFixed(2) : '—';
+      sub.textContent = `Issue ${inv.issue_date || '—'} · Due ${inv.due_date || '—'} · ${inv.currency} ${due} due · ${inv.status}`;
+      main.appendChild(title); main.appendChild(sub);
+
+      const actions = document.createElement('div');
+      actions.className = 'inv-actions';
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.textContent = 'Use this invoice';
+      btn.addEventListener('click', () => setSelected(inv));
+      actions.appendChild(btn);
+
+      card.appendChild(main);
+      card.appendChild(actions);
+      invResults.appendChild(card);
+    });
+  }
+  async function searchInvoices(q){
+    try{
+      const resp = await fetch(`{{ url_for('invoices_lookup_api') }}?q=` + encodeURIComponent(q));
+      const data = await resp.json();
+      renderList(data.results || []);
+    }catch(e){ clearResults(); }
+  }
+  if(invSearch){
+    let handle = null;
+    invSearch.addEventListener('input', () => {
+      const q = invSearch.value.trim();
+      if(handle) clearTimeout(handle);
+      if(q.length < 2){ clearResults(); return; }
+      handle = setTimeout(() => searchInvoices(q), 250);
+    });
+  }
+</script>
+{% endblock %}

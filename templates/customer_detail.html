@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Customer {{ reg.full_name }} · BV Management{% endblock %}
+
+{% block content %}
+<div class="customer-detail">
+
+  <!-- Header -->
+  <div class="row header" style="align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap">
+    <a class="mut" href="{{ url_for('customers_list', q=q, session=session_code, referral=referral, size=size, page=page) }}">← Back to Customers</a>
+    <div class="h1" style="margin:0">Customer · {{ reg.full_name }}</div>
+    <div class="row" style="gap:6px; margin-left:auto; flex-wrap:wrap">
+      {% if reg.course_session_code %}<span class="pill">Session: {{ reg.course_session_code }}</span>{% endif %}
+      {% if reg.referral_source %}<span class="pill">Referral: {{ reg.referral_source }}</span>{% endif %}
+      <span class="pill muted">ID #{{ reg.id }}</span>
+    </div>
+  </div>
+
+  <!-- Two columns -->
+  <div class="two-col">
+    <!-- LEFT: Profile + AI Intake -->
+    <aside class="card profile">
+      <div class="row" style="gap:12px; align-items:center; margin-bottom:8px; flex-wrap:wrap">
+        <div class="avatar">{{ initial }}</div>
+        <div class="name-block">
+          <div class="h2" style="margin:0">{{ reg.full_name }}</div>
+          <div class="mut">
+            {{ reg.job_title or '—' }}{% if reg.company %} @ {{ reg.company }}{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="kv"><span>Email</span><div>{{ reg.user_email or '—' }}</div></div>
+      <div class="kv"><span>Phone</span><div>{{ reg.phone or '—' }}</div></div>
+      <div class="kv"><span>Age / Gender</span><div>{{ reg.age or '—' }} / {{ reg.gender or '—' }}</div></div>
+      <div class="kv"><span>Country</span><div>{{ reg.country or '—' }}</div></div>
+
+      <div class="subhead">Enrollment</div>
+      <div class="kv">
+        <span>Status</span>
+        <div>
+          <span class="chip {{ effective_status }}">{{ effective_status }}</span>
+          {% if accepted_via_invoice and effective_status == 'accepted' %}
+            <span class="mut">via invoice</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="subhead">Manual controls</div>
+      <form method="post" action="{{ url_for('customer_set_status', reg_id=reg.id, q=q, session=session_code, referral=referral, size=size, page=page) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="row" style="gap:6px; flex-wrap:wrap">
+          <button name="status" value="accepted">Accept</button>
+          <button name="status" value="waitlist">Waitlist</button>
+          <button name="status" value="rejected">Reject</button>
+          <button name="status" value="pending" class="mut">Reset to pending</button>
+        </div>
+      </form>
+
+      <div class="subhead">AI Intake</div>
+      <div class="kv"><span>Current involvement</span><div>{{ reg.ai_current_involvement or '—' }}</div></div>
+      <div class="kv"><span>Goals</span><div>{{ reg.ai_goals_wish_to_achieve or '—' }}</div></div>
+      <div class="kv"><span>Datasets available</span><div>{{ reg.ai_datasets_available or '—' }}</div></div>
+      {% if reg.reason_choose_us %}
+        <div class="kv"><span>Why they chose us</span><div>{{ reg.reason_choose_us }}</div></div>
+      {% endif %}
+      {% if reg.notes %}
+        <div class="kv"><span>Internal notes</span><div>{{ reg.notes }}</div></div>
+      {% endif %}
+
+      <div class="chips" style="margin-top:10px">
+        <span class="chip {{ 'accepted' if consents.contact_ok else 'rejected' }}">Contact OK</span>
+        <span class="chip {{ 'accepted' if consents.marketing_ok else 'rejected' }}">Marketing OK</span>
+        <span class="chip {{ 'accepted' if consents.data_ok else 'rejected' }}">Data processing OK</span>
+      </div>
+
+      <div class="mut" style="margin-top:12px">Created {{ reg.created_at }} • Updated {{ reg.updated_at }}</div>
+    </aside>
+
+    <!-- RIGHT: Cards -->
+    <section class="right-cards">
+      <div class="card">
+        <div class="h2">Contact & Identity</div>
+        <div class="grid-two">
+          <div class="kv"><span>Full name</span><div>{{ reg.full_name }}</div></div>
+          <div class="kv"><span>Job title</span><div>{{ reg.job_title or '—' }}</div></div>
+          <div class="kv"><span>Company</span><div>{{ reg.company or '—' }}</div></div>
+          <div class="kv"><span>Referral</span><div>{{ reg.referral_source or '—' }} <span class="mut">{{ reg.referral_details or '' }}</span></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="h2">Addresses</div>
+        <div class="grid-two">
+          <div>
+            <div class="subhead">Personal / Shipping</div>
+            <div class="preline">
+              {{ reg.address_line1 or '' }}
+              {% if reg.address_line2 %}\n{{ reg.address_line2 }}{% endif %}
+              {% if reg.city %}\n{{ reg.city }}{% endif %}{% if reg.state %} {{ reg.state }}{% endif %}
+              {% if reg.postal_code %}\n{{ reg.postal_code }}{% endif %}
+              {% if reg.country %}\n{{ reg.country }}{% endif %}
+            </div>
+          </div>
+          <div>
+            <div class="subhead">Billing address</div>
+            <div class="preline">
+              {{ reg.invoice_addr_line1 or '' }}
+              {% if reg.invoice_addr_line2 %}\n{{ reg.invoice_addr_line2 }}{% endif %}
+              {% if reg.invoice_city %}\n{{ reg.invoice_city }}{% endif %}{% if reg.invoice_state %} {{ reg.invoice_state }}{% endif %}
+              {% if reg.invoice_postal_code %}\n{{ reg.invoice_postal_code }}{% endif %}
+              {% if reg.invoice_country %}\n{{ reg.invoice_country }}{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="h2">Billing Profile</div>
+        <div class="grid-two">
+          <div class="kv"><span>Invoice to (Name)</span><div>{{ reg.invoice_name or '—' }}</div></div>
+          <div class="kv"><span>Invoice to (Company)</span><div>{{ reg.invoice_company or '—' }}</div></div>
+          <div class="kv"><span>Tax/VAT</span><div>{{ reg.invoice_vat_id or '—' }}</div></div>
+          <div class="kv"><span>Billing email</span><div>{{ reg.invoice_email or '—' }}</div></div>
+          <div class="kv"><span>Billing phone</span><div>{{ reg.invoice_phone or '—' }}</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="h2">Course & Consents</div>
+        <div class="grid-two">
+          <div class="kv"><span>Session code</span><div>{{ reg.course_session_code or '—' }}</div></div>
+          <div class="kv">
+            <span>Consents</span>
+            <div class="chips">
+              <span class="chip {{ 'accepted' if consents.contact_ok else 'rejected' }}">Contact OK</span>
+              <span class="chip {{ 'accepted' if consents.marketing_ok else 'rejected' }}">Marketing OK</span>
+              <span class="chip {{ 'accepted' if consents.data_ok else 'rejected' }}">Data processing OK</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Scoped CSS -->
+  <style>
+    .customer-detail, .customer-detail * { box-sizing: border-box; }
+    .customer-detail .pill { display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #e4e7ec; font-size:12px; }
+    .customer-detail .pill.muted { color:#6b7280; }
+
+    .customer-detail .two-col { display:grid; grid-template-columns: 320px minmax(0,1fr); gap:16px; align-items:start; }
+    .customer-detail .two-col > * { min-width:0; }
+    @media (max-width: 900px) { .customer-detail .two-col { grid-template-columns: 1fr; } }
+
+    .customer-detail .right-cards { display:grid; grid-template-columns: 1fr; gap:16px; min-width:0; }
+
+    .customer-detail .profile { position:sticky; top:12px; align-self:start; }
+    .customer-detail .card { overflow:hidden; }
+
+    .customer-detail .avatar { width:56px; height:56px; border-radius:50%; display:grid; place-items:center; font-weight:700; font-size:20px; background:#eef2ff; color:#3730a3; flex:0 0 auto; }
+    .customer-detail .name-block { min-width:0; }
+    .customer-detail .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; min-width:0; }
+
+    .customer-detail .subhead { margin-top:10px; margin-bottom:6px; font-weight:600; font-size:13px; color:#6b7280; text-transform:uppercase; letter-spacing:.02em; }
+
+    .customer-detail .kv { display:grid; grid-template-columns: 130px minmax(0,1fr); gap:8px; padding:4px 0; align-items:start; }
+    .customer-detail .kv > span { color:#6b7280; font-size:13px; }
+    .customer-detail .kv > div { overflow-wrap:anywhere; word-break:break-word; }
+
+    .customer-detail .grid-two { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    .customer-detail .grid-two > * { min-width:0; }
+    @media (max-width: 900px) { .customer-detail .grid-two { grid-template-columns: 1fr; } }
+
+    .customer-detail .preline { white-space:pre-line; overflow-wrap:anywhere; word-break:break-word; }
+
+    .customer-detail .chips { display:flex; gap:6px; flex-wrap:wrap; }
+
+    /* Status chips (reused) */
+    .chip { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; line-height:1; border:1px solid #e5e7eb; text-transform:capitalize; }
+    .chip.pending  { background:#eff6ff; color:#1e40af; border-color:#bfdbfe; }
+    .chip.accepted { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
+    .chip.rejected { background:#fef2f2; color:#991b1b; border-color:#fecaca; }
+    .chip.waitlist { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+  </style>
+</div>
+{% endblock %}

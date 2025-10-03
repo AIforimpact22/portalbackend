@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Login — BV Management{% endblock %}
+
+{% block content %}
+  <div class="center card">
+    <div class="h1">Sign in</div>
+    <p class="mut" style="margin-top:0">Enter the access password to continue.</p>
+    <form method="post" action="{{ url_for('login') }}" class="section">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {% if next %}
+        <input type="hidden" name="next" value="{{ next|e }}">
+      {% endif %}
+      <div class="section">
+        <label for="password">Access Password</label>
+        <input id="password" name="password" type="password" required autofocus placeholder="••••••••"/>
+      </div>
+      <div class="row right">
+        <button type="submit">Login</button>
+      </div>
+    </form>
+    <p class="mut" style="margin-top:16px;font-size:12px">
+      Tip: set <code>APP_PASSWORD</code> (simple) or <code>APP_PASSWORD_HASH</code> (preferred) as an environment variable.
+    </p>
+  </div>
+{% endblock %}

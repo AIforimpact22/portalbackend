@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Invoice {{ inv.invoice_no }} · BV Management{% endblock %}
+{% block content %}
+  <div class="h1">Invoice {{ inv.invoice_no }}</div>
+
+  <div class="grid cards">
+    <div class="card">
+      <div class="h2">Header</div>
+      <div>Issue: {{ inv.issue_date }} • Supply: {{ inv.supply_date }} • Due: {{ inv.due_date }} • {{ inv.currency }}</div>
+      <div>VAT scheme: {{ inv.vat_scheme }}</div>
+      <div>Notes: {{ inv.notes or '—' }}</div>
+    </div>
+    <div class="card">
+      <div class="h2">Customer</div>
+      <div><strong>{{ inv.client_name }}</strong></div>
+      <div style="white-space:pre-line">{{ inv.client_address }}</div>
+      <div>Customer VAT: {{ inv.client_vat_number or '—' }}</div>
+      {% if customer_link %}
+        <div class="row" style="margin-top:8px">
+          <a class="card" href="{{ customer_link }}" style="padding:8px 12px">View customer profile</a>
+        </div>
+      {% endif %}
+    </div>
+    <div class="card">
+      <div class="h2">Totals</div>
+      <div>Net: <strong>€ {{ '%.2f'|format((inv.net_total or 0)) }}</strong></div>
+      <div>VAT: <strong>€ {{ '%.2f'|format((inv.vat_total or 0)) }}</strong></div>
+      <div>Gross: <strong>€ {{ '%.2f'|format((inv.gross_total or 0)) }}</strong></div>
+      <div>Status: <strong>{{ inv.status }}</strong></div>
+    </div>
+    <div class="card">
+      <div class="h2">Stripe Payment</div>
+      {% if inv.stripe_payment_url %}
+        <div class="row">
+          <a class="card" href="{{ inv.stripe_payment_url }}" target="_blank" style="padding:10px 14px">Pay via Stripe</a>
+          <a class="card" href="{{ inv.stripe_payment_url }}" target="_blank" style="padding:10px 14px">Open Link</a>
+        </div>
+        <div class="mut" style="margin-top:8px; word-break:break-all">{{ inv.stripe_payment_url }}</div>
+      {% else %}
+        <div class="mut">No Stripe link attached.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card section">
+    <div class="h2">Lines</div>
+    <table>
+      <thead><tr><th>Description</th><th>Qty</th><th>Unit €</th><th>VAT %</th><th>Total €</th></tr></thead>
+      <tbody>
+        {% for line in inv.lines %}
+          <tr>
+            <td>{{ line.description }}</td>
+            <td>{{ '%.2f'|format(line.qty or 0) }}</td>
+            <td>{{ '%.2f'|format(line.unit_price or 0) }}</td>
+            <td>{{ '%.2f'|format(line.vat_rate or 0) }}</td>
+            <td>{{ '%.2f'|format(line.line_total or 0) }}</td>
+          </tr>
+        {% endfor %}
+        {% if not inv.lines %}
+          <tr><td colspan="5"><span class="mut">No lines.</span></td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if linked_expenses %}
+  <div class="card section">
+    <div class="h2">Linked Freelancer Payouts</div>
+    <div style="margin-bottom:8px">Total payouts: € {{ '%.2f'|format(linked_total or 0) }} • Margin after payouts: € {{ '%.2f'|format(margin_after_freelancers or 0) }}</div>
+    <table>
+      <thead><tr><th>Date</th><th>Freelancer</th><th>Gross €</th><th>Method</th><th>Ref</th></tr></thead>
+      <tbody>
+        {% for p in linked_expenses %}
+          <tr>
+            <td>{{ p.date }}</td>
+            <td>{{ p.vendor }}</td>
+            <td>{{ '%.2f'|format(p.amount_gross or 0) }}</td>
+            <td>{{ p.pay_method or '—' }}</td>
+            <td>{{ p.pay_reference or '—' }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Danger Zone -->
+  <div class="card section" style="border-color:#fecaca">
+    <div class="h2">Danger Zone</div>
+    <div class="mut" style="margin-bottom:8px">
+      You can only delete an invoice that has <strong>no payments</strong> and <strong>no linked expenses</strong>.
+      Current: {{ payments_count }} payment(s), {{ all_expenses_count }} expense(s).
+    </div>
+    <form method="post" action="{{ url_for('delete_invoice', invoice_id=inv.id) }}"
+          onsubmit="return confirm('Delete invoice {{ inv.invoice_no }}? This cannot be undone.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="danger" {% if not can_delete %}disabled title="Remove payments/expenses first"{% endif %}>Delete this invoice</button>
+    </form>
+  </div>
+
+  <style>
+    .danger { background:#fee2e2; border:1px solid #fecaca; }
+    table td, table th { word-break:break-word; overflow-wrap:anywhere; }
+  </style>
+{% endblock %}

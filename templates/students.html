@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Students{% endblock %}
+
+{% block content %}
+<div class="container">
+
+  {% if not course_id %}
+    <h2 class="mt-3">Select a course</h2>
+    <p class="text-muted">Pick a course to see its students (based on activity in that course).</p>
+
+    <div class="table-responsive">
+      <table class="table table-sm table-striped align-middle">
+        <thead>
+          <tr>
+            <th style="width: 100px;">Course ID</th>
+            <th>Title</th>
+            <th style="width: 140px;">Learners</th>
+            <th style="width: 220px;">Last activity (UTC)</th>
+            <th style="width: 100px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in courses %}
+          <tr>
+            <td>{{ c.id }}</td>
+            <td>{{ c.title }}</td>
+            <td><span class="badge bg-secondary">{{ c.learners }}</span></td>
+            <td>
+              {% if c.last_activity %}
+                {{ c.last_activity.strftime("%Y-%m-%d %H:%M:%S") }}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td><a class="btn btn-primary btn-sm" href="{{ c.url }}">Open</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if not courses %}
+      <div class="alert alert-info mt-3">
+        No courses found.
+      </div>
+    {% endif %}
+
+  {% else %}
+    <div class="d-flex align-items-center mt-3">
+      <h2 class="me-3">Students — Course {{ course_id }}</h2>
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('students') }}">← Back to courses</a>
+    </div>
+    {% if course_title %}
+      <p class="text-muted mb-2">{{ course_title }}</p>
+    {% endif %}
+
+    <div class="mb-2">
+      <input id="q" type="search" class="form-control" placeholder="Filter by name/email/lesson…">
+    </div>
+
+    <div class="table-responsive">
+      <table id="students-table" class="table table-sm table-striped align-middle">
+        <thead>
+          <tr>
+            <th style="width: 64px;">User ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Latest lesson</th>
+            <th style="width: 200px;">Last seen (UTC)</th>
+            <th style="width: 120px;">Kind</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for it in items %}
+          <tr>
+            <td class="text-muted">{{ it.user_id }}</td>
+            <td>
+              <a href="{{ it.detail_url }}">{{ it.name }}</a>
+            </td>
+            <td>
+              {% if it.email %}
+                <a href="mailto:{{ it.email }}">{{ it.email }}</a>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if it.lesson_title %}
+                {{ it.lesson_title }}
+                {% if it.lesson_uid %}<span class="text-muted small">(<code>{{ it.lesson_uid }}</code>)</span>{% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td>{{ it.last_seen.strftime("%Y-%m-%d %H:%M:%S") if it.last_seen else "—" }}</td>
+            <td><span class="badge bg-info text-dark">{{ it.kind }}</span></td>
+            <td>{{ it.detail or "" }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if not items %}
+      <div class="alert alert-info mt-3">
+        No learners with activity in this course yet.
+      </div>
+    {% endif %}
+
+    <script>
+      // Lightweight client-side filter
+      (function(){
+        const q = document.getElementById('q');
+        const table = document.getElementById('students-table');
+        if (!q || !table) return;
+        q.addEventListener('input', function() {
+          const needle = (q.value || '').toLowerCase();
+          for (const tr of table.tBodies[0].rows) {
+            const text = tr.innerText.toLowerCase();
+            tr.style.display = text.includes(needle) ? '' : 'none';
+          }
+        });
+      })();
+    </script>
+
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Course Registration • {{ brand_name }}{% endblock %}
+{% block content %}
+<div style="max-width: 1040px; margin: 24px auto; padding: 0 12px;">
+  <div style="background:#fff; border:1px solid #e8e8e8; border-radius:12px; box-shadow:0 8px 22px rgba(0,0,0,.06); padding:20px;">
+    <div style="display:flex; align-items:center; gap:16px; margin-bottom:10px;">
+      <img src="{{ brand_logo_url }}" alt="{{ brand_name }} logo" style="height:48px;border-radius:8px;background:#fff;">
+      <div>
+        <h2 style="margin:0;">{{ brand_name }} — Registration</h2>
+        <div style="color:#6d6d6d;">Powered by: <strong>{{ powered_by }}</strong></div>
+      </div>
+      <div style="margin-left:auto;">
+        {% if signed_in %}<a href="{{ url_for('course_logout') }}" style="color:#000;">Sign out</a>{% endif %}
+      </div>
+    </div>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        {% for category, msg in msgs %}
+          <div class="alert {{ category }}" style="padding:12px 14px;border-radius:10px;margin:8px 0 16px;border:1px solid #eee;">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    {% if not signed_in %}
+      <form method="post" action="{{ url_for('course_signin') }}" autocomplete="on" style="display:grid;gap:12px;grid-template-columns:repeat(2,minmax(0,1fr));">
+        <div>
+          <label>Email (optional)</label>
+          <input name="user_email" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+        <div>
+          <label>Course Access Code</label>
+          <input name="access_code" type="text" placeholder="Enter code" required />
+        </div>
+        <div style="grid-column:1 / -1; display:flex; gap:10px;">
+          <button type="submit" style="border:1px solid #000;background:#000;color:#fff;padding:10px 16px;border-radius:10px;font-weight:800;">Sign in</button>
+          <a href="{{ url_for('login') }}" style="text-decoration:none;">I’m an admin</a>
+        </div>
+      </form>
+    {% else %}
+      {% if submitted %}
+        <div style="padding:12px 14px;border-radius:10px;margin:8px 0 16px;border:1px solid #c5e7cf;background:#eaf8ef;color:#0a5a2a;">
+          ✅ Thank you! Your registration has been received.
+        </div>
+      {% endif %}
+      {% if errors and errors|length %}
+        <div style="padding:12px 14px;border-radius:10px;margin:8px 0 16px;border:1px solid #f5c0c0;background:#ffecec;color:#8a1f1f;">
+          <strong>Please fix the following:</strong>
+          <ul>{% for err in errors %}<li>{{ err }}</li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('course_register') }}" novalidate>
+        <h3>Course Selection</h3>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+          <div>
+            <label>Choose your course</label>
+            <select id="course_session_code" name="course_session_code" required>
+              <option value="">-- Select --</option>
+              {% for c in courses %}
+                <option value="{{ c.code }}" {% if form_data and form_data.course_session_code == c.code %}selected{% endif %}>{{ c.title }}</option>
+              {% endfor %}
+            </select>
+            <div style="margin-top:8px;">
+              <label>Promo code (optional)</label>
+              <input id="promo_code" name="promo_code" type="text" placeholder="e.g., {{ promo_code }}">
+              <div style="color:#6d6d6d;">Standard price: €{{ base_price_eur }}. With <b>{{ promo_code }}</b>: €{{ promo_price_eur }}.</div>
+            </div>
+          </div>
+          <div>
+            <label>Price</label>
+            <div id="pricePill" style="display:none;border:1px dashed #000; padding:6px 10px; border-radius:999px; font-weight:800; width:max-content;">
+              <span id="priceBase" style="opacity:.6;text-decoration:line-through;">€{{ base_price_eur }}</span>
+              <span id="priceFinal">€{{ base_price_eur }}</span>
+            </div>
+          </div>
+        </div>
+
+        <h3>Basic Information</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+          <div><label>First Name *</label><input name="first_name" required></div>
+          <div><label>Middle Name</label><input name="middle_name"></div>
+          <div><label>Last Name *</label><input name="last_name" required></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+          <div><label>Age</label><input type="number" name="age" min="10" max="120"></div>
+          <div>
+            <label>Gender</label>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;">
+              {% for g in ["Female","Male","Prefer not to say"] %}
+                <label><input type="radio" name="gender" value="{{ g }}"> {{ g }}</label>
+              {% endfor %}
+            </div>
+          </div>
+          <div><label>Phone</label><input name="phone" type="tel"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+          <div><label>Email</label><input name="user_email" type="email" value="{{ user_email or '' }}"></div>
+          <div>
+            <label>Your Job / Role</label>
+            <select name="job_title" required>
+              {% for r in ["Student","Software Engineer / Developer","Data Analyst / Data Scientist","Product Manager","Researcher / Academic","Business Owner / Founder","Marketing / Growth","Operations / Supply Chain","Finance / Analyst","Other"] %}
+                <option value="{{ r }}">{{ r }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+          <div><label>Company / Organization</label><input name="company"></div>
+          <div></div>
+        </div>
+
+        <h3>Address</h3>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+          <div><label>Address Line 1</label><input name="address_line1"></div>
+          <div><label>Address Line 2</label><input name="address_line2"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+          <div><label>City</label><input name="city"></div>
+          <div><label>State / Province</label><input name="state"></div>
+          <div><label>Postal Code</label><input name="postal_code"></div>
+        </div>
+        <div><label>Country</label><input name="country"></div>
+
+        <h3>AI Interest & Background</h3>
+        <div><label>Current involvement in AI (max 500)</label><textarea name="ai_current_involvement" maxlength="500"></textarea></div>
+        <div><label>What you wish to achieve with AI (max 500)</label><textarea name="ai_goals_wish_to_achieve" maxlength="500"></textarea></div>
+        <div><label>Datasets you have (format, size, sensitivity) (max 500)</label><textarea name="ai_datasets_available" maxlength="500"></textarea></div>
+
+        <h3>How did you find us & why choose us?</h3>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+          <div>
+            <label>How did you find us?</label>
+            <select name="referral_source">
+              <option value=""></option>
+              {% for r in ["Search","YouTube","TikTok/Instagram","X/Twitter","LinkedIn","Friend/Colleague","Event/Conference","Partner","Newsletter","Other"] %}
+                <option value="{{ r }}">{{ r }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label>Why did you choose us? (max 500)</label>
+            <textarea name="reason_choose_us" maxlength="500"></textarea>
+          </div>
+        </div>
+
+        <h3>Invoice / Billing</h3>
+        <label><input type="checkbox" id="billing_same" name="billing_same_as_personal" checked> Use same as personal details (recommended)</label>
+        <div id="billingFields" style="display:none;">
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+            <div><label>Billing Contact Name</label><input name="invoice_name"></div>
+            <div><label>Company</label><input name="invoice_company"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+            <div><label>Billing Email</label><input name="invoice_email" type="email"></div>
+            <div><label>Billing Phone</label><input name="invoice_phone" type="tel"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+            <div><label>VAT / Tax ID</label><input name="invoice_vat_id"></div><div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+            <div><label>Billing Address Line 1</label><input name="invoice_addr_line1"></div>
+            <div><label>Billing Address Line 2</label><input name="invoice_addr_line2"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;">
+            <div><label>City</label><input name="invoice_city"></div>
+            <div><label>State / Province</label><input name="invoice_state"></div>
+            <div><label>Postal Code</label><input name="invoice_postal_code"></div>
+          </div>
+          <div><label>Country</label><input name="invoice_country"></div>
+        </div>
+
+        <h3>Consents & Notes</h3>
+        <div><label><input type="checkbox" name="consent_contact_ok" checked> I agree to be contacted for course operations.</label></div>
+        <div><label><input type="checkbox" name="consent_marketing_ok"> I agree to receive updates and offers.</label></div>
+        <div><label><input type="checkbox" name="data_processing_ok" required checked> I consent to the processing of my data for registration and billing.</label></div>
+        <div><label>Any additional notes? (max 500)</label><textarea name="notes" maxlength="500"></textarea></div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-top:12px;">
+          <button type="submit" style="border:1px solid #000;background:#000;color:#fff;padding:10px 16px;border-radius:10px;font-weight:800;">Submit registration</button>
+          <button type="reset" style="border:1px solid #000;background:#fff;color:#000;padding:10px 16px;border-radius:10px;font-weight:800;">Reset</button>
+        </div>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+  // price logic
+  const courseSel = document.getElementById('course_session_code');
+  const promoInput = document.getElementById('promo_code');
+  const pricePill = document.getElementById('pricePill');
+  const priceBase = document.getElementById('priceBase');
+  const priceFinal = document.getElementById('priceFinal');
+  const BASE = {{ base_price_eur }};
+  const PROMO_CODE = "{{ promo_code }}".toLowerCase();
+  const PROMO_PRICE = {{ promo_price_eur }};
+
+  function computePrice(){
+    const show = !!courseSel?.value;
+    if (!show) { pricePill.style.display = 'none'; return; }
+    const promo = (promoInput?.value || "").trim().toLowerCase();
+    const applied = promo && promo === PROMO_CODE;
+
+    pricePill.style.display = 'inline-flex';
+    if (applied) {
+      priceBase.style.display = 'inline';
+      priceBase.textContent = "€" + BASE;
+      priceFinal.textContent = "€" + PROMO_PRICE;
+    } else {
+      priceBase.style.display = 'none';
+      priceFinal.textContent = "€" + BASE;
+    }
+  }
+  courseSel?.addEventListener('change', computePrice);
+  promoInput?.addEventListener('input', computePrice);
+  window.addEventListener('DOMContentLoaded', computePrice);
+
+  // billing toggle
+  const billingSame = document.getElementById('billing_same');
+  const billingFields = document.getElementById('billingFields');
+  function syncBilling(){ billingFields.style.display = billingSame.checked ? 'none' : 'block'; }
+  billingSame?.addEventListener('change', syncBilling);
+  window.addEventListener('DOMContentLoaded', syncBilling);
+</script>
+{% endblock %}

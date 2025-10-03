@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Invoices · BV Management{% endblock %}
+{% block content %}
+  <div class="h1">Invoices</div>
+
+  <div class="card">
+    <form method="get" class="row" style="gap:12px; align-items:flex-end; flex-wrap:wrap">
+      <div>
+        <label>Status</label>
+        <select name="status">
+          <option value="" {{ '' == (status or '') and 'selected' or '' }}>All</option>
+          <option value="SENT" {{ (status or '') == 'SENT' and 'selected' or '' }}>SENT</option>
+          <option value="PAID" {{ (status or '') == 'PAID' and 'selected' or '' }}>PAID</option>
+          <option value="DUE" {{ (status or '') == 'DUE' and 'selected' or '' }}>DUE</option>
+          <option value="VOID" {{ (status or '') == 'VOID' and 'selected' or '' }}>VOID</option>
+        </select>
+      </div>
+      <button>Filter</button>
+      <a class="card" href="{{ url_for('invoice_new_page') }}" style="padding:8px 12px; margin-left:auto">+ New invoice</a>
+    </form>
+  </div>
+
+  <div class="card section">
+    <table>
+      <thead>
+        <tr>
+          <th>Issue date</th>
+          <th>No.</th>
+          <th>Client</th>
+          <th>Gross €</th>
+          <th>Status</th>
+          <th style="width:200px">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in invoices %}
+        <tr>
+          <td>{{ inv.issue_date }}</td>
+          <td><a href="{{ url_for('invoice_detail', invoice_id=inv.id) }}">{{ inv.invoice_no }}</a></td>
+          <td>{{ inv.client_name }}</td>
+          <td>{{ '%.2f'|format((inv.gross_total or 0)) }}</td>
+          <td>{{ inv.status }}</td>
+          <td>
+            <div class="row" style="gap:8px; flex-wrap:wrap">
+              <a class="card" href="{{ url_for('invoice_detail', invoice_id=inv.id) }}" style="padding:6px 10px">Open</a>
+              <form method="post" action="{{ url_for('delete_invoice', invoice_id=inv.id) }}"
+                    onsubmit="return confirm('Delete invoice {{ inv.invoice_no }}? This cannot be undone.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="danger">Delete</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not invoices %}
+        <tr><td colspan="6"><span class="mut">No invoices found.</span></td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <style>
+    .danger { background:#fee2e2; border:1px solid #fecaca; }
+    table td, table th { word-break:break-word; overflow-wrap:anywhere; }
+  </style>
+{% endblock %}

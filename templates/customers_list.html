@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Customers · BV Management{% endblock %}
+{% block content %}
+  <div class="h1">Customers</div>
+
+  <div class="card">
+    <form method="get" class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap">
+      <div style="flex:2; min-width:220px">
+        <label>Search (name, email, company)</label>
+        <input type="text" name="q" value="{{ q }}" placeholder="e.g., mustafa, ihsan@, company..." />
+      </div>
+      <div style="flex:1; min-width:160px">
+        <label>Session code</label>
+        <input type="text" name="session" value="{{ session_code }}" placeholder="2025-Q4, Bootcamp-Oct..." />
+      </div>
+      <div style="flex:1; min-width:160px">
+        <label>Referral source</label>
+        <input type="text" name="referral" value="{{ referral }}" placeholder="YouTube, LinkedIn, Other..." />
+      </div>
+      <div style="flex:0">
+        <label>Page size</label>
+        <input type="number" min="1" max="100" name="size" value="{{ size }}" />
+      </div>
+      <div style="flex:0">
+        <button type="submit">Filter</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card section">
+    <table>
+      <thead>
+        <tr>
+          <th>Created</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Company</th>
+          <th>Country</th>
+          <th>Session</th>
+          <th>Enrollment · Invoice</th>
+          <th>Referral</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in customers %}
+        {% set eff = (effective_status_map.get(c.id, {}) or {}).get('effective', c.enrollment_status or 'pending') %}
+        {% set via = (effective_status_map.get(c.id, {}) or {}).get('via_invoice', False) %}
+        {% set inv = (invoice_status_map.get(c.id, {}) or {}) %}
+        <tr>
+          <td>{{ c.created_at }}</td>
+          <td>
+            <a href="{{ url_for('customer_detail',
+                                 reg_id=c.id,
+                                 q=q, session=session_code, referral=referral, size=size, page=page) }}">
+              {{ c.full_name }}
+            </a>
+          </td>
+          <td>{{ c.user_email or '—' }}</td>
+          <td>{{ c.company or '—' }}</td>
+          <td>{{ c.country or '—' }}</td>
+          <td>{{ c.course_session_code or '—' }}</td>
+          <td>
+            <div class="row" style="gap:6px; flex-wrap:wrap; align-items:center">
+              <span class="chip {{ eff }}">{{ eff }}</span>
+              {% if via and eff == 'accepted' %}
+                <span class="mut">via invoice</span>
+              {% endif %}
+              {% if inv and inv.badge %}
+                <span class="chip inv {{ inv.badge }}" title="{{ inv.count or 0 }} invoice(s)">{{ inv.badge }}</span>
+              {% else %}
+                <span class="chip inv none" title="0 invoice(s)">none</span>
+              {% endif %}
+            </div>
+          </td>
+          <td>{{ c.referral_source or '—' }}</td>
+        </tr>
+        {% endfor %}
+        {% if not customers %}
+        <tr><td colspan="8"><span class="mut">No customers found.</span></td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <style>
+    table td, table th { word-break: break-word; overflow-wrap: anywhere; }
+
+    .chip { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #e5e7eb; text-transform:capitalize; }
+
+    /* Enrollment colors (existing) */
+    .chip.pending  { background:#eff6ff; color:#1e40af; border-color:#bfdbfe; }
+    .chip.accepted { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
+    .chip.rejected { background:#fef2f2; color:#991b1b; border-color:#fecaca; }
+    .chip.waitlist { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+
+    /* Invoice summary colors */
+    .chip.inv.closed  { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; } /* green */
+    .chip.inv.partial { background:#fffbeb; color:#92400e; border-color:#fde68a; } /* amber */
+    .chip.inv.due     { background:#fff7ed; color:#9a3412; border-color:#fed7aa; } /* orange */
+    .chip.inv.sent    { background:#eff6ff; color:#1e40af; border-color:#bfdbfe; } /* blue */
+    .chip.inv.draft,
+    .chip.inv.void,
+    .chip.inv.none    { background:#f3f4f6; color:#374151; border-color:#e5e7eb; }  /* gray */
+  </style>
+{% endblock %}
