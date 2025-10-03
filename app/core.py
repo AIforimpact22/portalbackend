@@ -10,6 +10,7 @@ from flask import request, redirect, url_for, flash, session, render_template, r
 from werkzeug.security import check_password_hash
 
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.sql import sqltypes
 from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
 
 load_dotenv()
@@ -268,7 +269,33 @@ def run_schema_upgrades(engine_ = None):
 
     # invoices: totals, compliance, and Stripe columns
     if insp.has_table("invoices"):
-        cols = {c['name'] for c in insp.get_columns("invoices")}
+        invoice_columns = insp.get_columns("invoices")
+        cols = {c['name'] for c in invoice_columns}
+
+        def _coerced_numeric_expr(column_name: str) -> str:
+            """Return an expression that safely coerces legacy text columns to numeric."""
+            col_info = next((c for c in invoice_columns if c["name"] == column_name), None)
+            if not col_info:
+                return column_name
+
+            if isinstance(
+                col_info["type"],
+                (
+                    sqltypes.String,
+                    sqltypes.Unicode,
+                    sqltypes.Text,
+                    sqltypes.UnicodeText,
+                ),
+            ):
+                if dialect_name == "sqlite":
+                    return f"CAST(NULLIF({column_name}, '') AS NUMERIC)"
+                cleaned = f"NULLIF(TRIM({column_name}), '')"
+                return (
+                    f"CASE WHEN {cleaned} ~ '^-?[0-9]+(\\.[0-9]+)?$' "
+                    f"THEN {cleaned}::numeric ELSE NULL END"
+                )
+
+            return column_name
         adds = []
         if "supply_date"      not in cols: adds.append("ALTER TABLE invoices ADD COLUMN supply_date DATE")
         if "vat_scheme"       not in cols: adds.append("ALTER TABLE invoices ADD COLUMN vat_scheme VARCHAR(32) DEFAULT 'STANDARD'")
@@ -293,12 +320,49 @@ def run_schema_upgrades(engine_ = None):
             if "supply_date" not in cols and "issue_date" in cols_after:
                 conn.execute(text("UPDATE invoices SET supply_date = issue_date WHERE supply_date IS NULL"))
             if "amount" in cols_after:
-                conn.execute(text("""
+                gross_expr = _coerced_numeric_expr("gross_total")
+                net_expr = _coerced_numeric_expr("net_total")
+                vat_expr = _coerced_numeric_expr("vat_total")
+                conn.execute(
+                    text(
+                        """
                     UPDATE invoices
-                       SET gross_total = COALESCE(gross_total,0),
-                           net_total   = CASE WHEN COALESCE(net_total,0)=0 THEN COALESCE(amount,0) END,
-                           vat_total   = COALESCE(vat_total,0)
-                 """))
+                       SET gross_total = COALESCE({gross}, 0),
+                           net_total   = CASE
+                                             WHEN COALESCE({net}, 0) = 0 THEN COALESCE(amount, 0)
+                                             ELSE {net}
+                                         END,
+                           vat_total   = COALESCE({vat}, 0)
+                        """.format(
+                            gross=gross_expr,
+                            net=net_expr,
+                            vat=vat_expr,
+                        )
+                    )
+                )
+
+                if dialect_name == "postgresql":
+                    for col_name in ("gross_total", "net_total", "vat_total"):
+                        col_info = next((c for c in invoice_columns if c["name"] == col_name), None)
+                        if col_info and isinstance(
+                            col_info["type"],
+                            (
+                                sqltypes.String,
+                                sqltypes.Unicode,
+                                sqltypes.Text,
+                                sqltypes.UnicodeText,
+                            ),
+                        ):
+                            coerced_expr = _coerced_numeric_expr(col_name)
+                            conn.execute(
+                                text(
+                                    """
+                                ALTER TABLE invoices
+                                    ALTER COLUMN {col} TYPE NUMERIC(12,2)
+                                    USING COALESCE({expr}, 0)
+                                    """.format(col=col_name, expr=coerced_expr)
+                                )
+                            )
 
     # invoice_lines: totals & VAT rate
     if insp.has_table("invoice_lines"):
