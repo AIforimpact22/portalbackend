@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime as dt
 import json, ast
 from typing import Any, Dict, Iterable, Tuple, List, Optional
+from dateutil import parser as dateparser
 from flask import request, jsonify, flash, url_for
 from sqlalchemy import text
 
@@ -32,8 +33,26 @@ def _safe_now_utc() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
 
 
-def _as_aware(ts: dt.datetime) -> dt.datetime:
-    return ts if (ts and ts.tzinfo) else (ts.replace(tzinfo=dt.timezone.utc) if ts else ts)
+def _as_aware(ts: Any) -> Optional[dt.datetime]:
+    if ts is None:
+        return None
+
+    if isinstance(ts, str):
+        candidate = ts.strip()
+        if candidate.endswith("Z"):
+            candidate = candidate[:-1] + "+00:00"
+        try:
+            ts = dt.datetime.fromisoformat(candidate)
+        except ValueError:
+            try:
+                ts = dateparser.isoparse(candidate)
+            except (ValueError, TypeError):
+                return None
+
+    if isinstance(ts, dt.datetime):
+        return ts if ts.tzinfo else ts.replace(tzinfo=dt.timezone.utc)
+
+    return None
 
 
 def _lesson_maps_from_structure(struct: Any) -> Dict[str, Dict[str, Any]]:
