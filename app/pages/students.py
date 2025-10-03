@@ -179,7 +179,7 @@ def register(app):
               FROM latest l
               LEFT JOIN registrations r
                      ON r.id = l.user_id
-          ORDER BY COALESCE(l.last_seen, TIMESTAMPTZ 'epoch') DESC, l.user_id
+          ORDER BY l.last_seen DESC NULLS LAST, l.user_id
         """)
         rows = cdb.execute(latest_sql, {"cid": course_id}).mappings().all()
 
@@ -290,7 +290,7 @@ def register(app):
               FROM latest l
               LEFT JOIN registrations r
                      ON r.id = l.user_id
-          ORDER BY COALESCE(l.last_seen, TIMESTAMPTZ 'epoch') DESC, l.user_id
+          ORDER BY l.last_seen DESC NULLS LAST, l.user_id
         """)
         rows = cdb.execute(latest_sql, {"cid": course_id}).mappings().all()
 
