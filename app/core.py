@@ -173,6 +173,7 @@ render = _guarded_render(render_template)
 def run_schema_upgrades(engine_ = None):
     eng = engine_ or engine
     insp = inspect(eng)
+    dialect_name = eng.dialect.name
 
     # company_settings: add rsin
     if insp.has_table("company_settings"):
@@ -226,7 +227,8 @@ def run_schema_upgrades(engine_ = None):
             for s in adds:
                 conn.execute(text(s))
             if "amount" in cols:
-                conn.execute(text("ALTER TABLE invoices ALTER COLUMN amount SET DEFAULT 0"))
+                if dialect_name != "sqlite":
+                    conn.execute(text("ALTER TABLE invoices ALTER COLUMN amount SET DEFAULT 0"))
                 conn.execute(text("UPDATE invoices SET amount = 0 WHERE amount IS NULL"))
             cols_after = {c['name'] for c in insp.get_columns("invoices")}
             if "supply_date" not in cols and "issue_date" in cols_after:
