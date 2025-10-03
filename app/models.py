@@ -38,7 +38,7 @@ class Invoice(Base):
     __tablename__ = "invoices"
 
     # Use BigInteger to match DB (psql showed bigint)
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
 
     # Legacy live-DB column; keep mapped & synced with gross_total
     legacy_amount = Column("amount", Numeric(12, 2), nullable=True, server_default=text("0"))
@@ -88,7 +88,7 @@ class Invoice(Base):
 
 class InvoiceLine(Base):
     __tablename__ = "invoice_lines"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     invoice_id = Column(BigInteger, ForeignKey("invoices.id"), nullable=False)
 
     description = Column(Text, nullable=False)
@@ -104,7 +104,7 @@ class InvoiceLine(Base):
 
 class Payment(Base):
     __tablename__ = "payments"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     invoice_id = Column(BigInteger, ForeignKey("invoices.id"), nullable=True)
     date = Column(Date, nullable=False, default=date.today)
     amount = Column(Numeric(12, 2), nullable=False)
@@ -117,7 +117,7 @@ class Payment(Base):
 
 class Expense(Base):
     __tablename__ = "expenses"
-    id = Column(BigInteger, primary_key=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     date = Column(Date, nullable=False, default=date.today)
     vendor = Column(String(160), nullable=False)
     category = Column(String(64), nullable=False)  # Freelancer, Subcontractor, Software, Travel...
