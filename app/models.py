@@ -234,12 +234,14 @@ class Payment(Base):
 class Expense(Base):
     __tablename__ = "expenses"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
-    date = Column(Date, nullable=False, default=date.today)
+    # Legacy Render DB stores ISO strings; use TextDate wrapper for compatibility
+    date = Column(TextDate(), nullable=False, default=date.today)
     vendor = Column(String(160), nullable=False)
     category = Column(String(64), nullable=False)  # Freelancer, Subcontractor, Software, Travel...
     description = Column(Text, default="")
     currency = Column(String(8), nullable=False, default="EUR")
-    vat_rate = Column(Numeric(5, 2), nullable=False, default=21.00)
+    # Persisted as TEXT historically; wrap with TextDecimal to coerce safely
+    vat_rate = Column(TextDecimal(5, 2), nullable=False, default=21.00)
     amount_net = Column(TextDecimal(12, 2), nullable=False, default=0)
     vat_amount = Column(TextDecimal(12, 2), nullable=False, default=0)
     amount_gross = Column(TextDecimal(12, 2), nullable=False, default=0)
