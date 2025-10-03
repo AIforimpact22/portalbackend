@@ -323,13 +323,14 @@ def run_schema_upgrades(engine_ = None):
                 gross_expr = _coerced_numeric_expr("gross_total")
                 net_expr = _coerced_numeric_expr("net_total")
                 vat_expr = _coerced_numeric_expr("vat_total")
+                amount_expr = _coerced_numeric_expr("amount")
                 conn.execute(
                     text(
                         """
                     UPDATE invoices
                        SET gross_total = COALESCE({gross}, 0),
                            net_total   = CASE
-                                             WHEN COALESCE({net}, 0) = 0 THEN COALESCE(amount, 0)
+                                             WHEN COALESCE({net}, 0) = 0 THEN COALESCE({amount}, 0)
                                              ELSE {net}
                                          END,
                            vat_total   = COALESCE({vat}, 0)
@@ -337,6 +338,7 @@ def run_schema_upgrades(engine_ = None):
                             gross=gross_expr,
                             net=net_expr,
                             vat=vat_expr,
+                            amount=amount_expr,
                         )
                     )
                 )
