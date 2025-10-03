@@ -80,6 +80,7 @@ class TextDate(TypeDecorator):
 
     impl = Text
     cache_ok = True
+    _date = Date()
 
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(Text())
@@ -119,10 +120,10 @@ class TextDate(TypeDecorator):
         return coerced
 
     def column_expression(self, column):  # type: ignore[override]
-        return cast(column, Date())
+        return cast(column, self._date)
 
     def coerce_compared_value(self, op, value):  # type: ignore[override]
-        return Date()
+        return self._date
 
 
 class CompanySettings(Base):
