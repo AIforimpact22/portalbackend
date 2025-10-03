@@ -1,6 +1,6 @@
 # app/pages/dashboard.py
 from datetime import date
-from sqlalchemy import select, func
+from sqlalchemy import select, func, cast, Numeric
 
 from ..core import get_db, csrf_token, render
 from ..models import Payment, Expense, Invoice
@@ -12,10 +12,20 @@ def register(app):
         db = get_db(); company = ensure_company(db)
         today = date.today()
         ytd_income = db.execute(
-            select(func.coalesce(func.sum(Payment.amount), 0)).where(Payment.date >= date(today.year,1,1))
+            select(
+                func.coalesce(
+                    func.sum(cast(Payment.amount, Numeric(12, 2))),
+                    0,
+                )
+            ).where(Payment.date >= date(today.year, 1, 1))
         ).scalar_one()
         ytd_expenses = db.execute(
-            select(func.coalesce(func.sum(Expense.amount_gross), 0)).where(Expense.date >= date(today.year,1,1))
+            select(
+                func.coalesce(
+                    func.sum(cast(Expense.amount_gross, Numeric(12, 2))),
+                    0,
+                )
+            ).where(Expense.date >= date(today.year, 1, 1))
         ).scalar_one()
 
         vat = vat_summary(db, today.year, ((today.month - 1)//3)+1)
