@@ -1,5 +1,5 @@
 # app/models.py
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Date, Numeric, ForeignKey, Text,
@@ -73,6 +73,56 @@ class TextDecimal(TypeDecorator):
 
     def coerce_compared_value(self, op, value):  # type: ignore[override]
         return self._numeric
+
+
+class TextDate(TypeDecorator):
+    """Store ISO date strings in legacy text columns while exposing them as ``date`` objects."""
+
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(Text())
+
+    @property
+    def python_type(self):  # type: ignore[override]
+        return date
+
+    def _coerce_date(self, value):
+        if value is None:
+            return None
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return value
+        if isinstance(value, datetime):
+            return value.date()
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+            try:
+                return date.fromisoformat(value)
+            except ValueError:
+                try:
+                    return datetime.fromisoformat(value).date()
+                except ValueError:
+                    return None
+        return None
+
+    def process_bind_param(self, value, dialect):  # type: ignore[override]
+        coerced = self._coerce_date(value)
+        if coerced is None:
+            return None
+        return coerced.isoformat()
+
+    def process_result_value(self, value, dialect):  # type: ignore[override]
+        coerced = self._coerce_date(value)
+        return coerced
+
+    def column_expression(self, column):  # type: ignore[override]
+        return cast(column, Date())
+
+    def coerce_compared_value(self, op, value):  # type: ignore[override]
+        return Date()
 
 
 class CompanySettings(Base):
@@ -172,7 +222,7 @@ class Payment(Base):
     __tablename__ = "payments"
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     invoice_id = Column(BigInteger, ForeignKey("invoices.id"), nullable=True)
-    date = Column(Date, nullable=False, default=date.today)
+    date = Column(TextDate(), nullable=False, default=date.today)
     amount = Column(TextDecimal(12, 2), nullable=False)
     method = Column(String(32), nullable=False, default="bank")  # bank, cash, western_union, other
     reference = Column(String(128))
