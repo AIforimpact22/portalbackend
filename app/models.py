@@ -1,12 +1,78 @@
 # app/models.py
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from sqlalchemy import (
     Column, Integer, BigInteger, String, Date, Numeric, ForeignKey, Text,
-    UniqueConstraint, text
+    UniqueConstraint, text, cast
 )
+from sqlalchemy.types import TypeDecorator
 from sqlalchemy.orm import relationship
 from .core import Base
+
+
+class TextDecimal(TypeDecorator):
+    """Store Decimal values in legacy text columns while exposing them as decimals."""
+
+    impl = Text
+    cache_ok = True
+
+    def __init__(self, precision: int = 12, scale: int = 2, **kwargs):
+        super().__init__(**kwargs)
+        self.precision = precision
+        self.scale = scale
+        self._numeric = Numeric(precision, scale)
+        self._quant = Decimal(1).scaleb(-scale)
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(Text())
+
+    @property
+    def python_type(self):  # type: ignore[override]
+        return Decimal
+
+    def _coerce_decimal(self, value):
+        if value is None:
+            return None
+        if isinstance(value, Decimal):
+            return value
+        if isinstance(value, (int, float)):
+            return Decimal(str(value))
+        if isinstance(value, str):
+            if value.strip() == "":
+                return None
+            try:
+                return Decimal(value.strip())
+            except (InvalidOperation, ValueError):
+                return None
+        try:
+            return Decimal(value)  # type: ignore[arg-type]
+        except (InvalidOperation, ValueError, TypeError):
+            return None
+
+    def process_bind_param(self, value, dialect):  # type: ignore[override]
+        dec_value = self._coerce_decimal(value)
+        if dec_value is None:
+            return None
+        try:
+            quantized = dec_value.quantize(self._quant)
+        except (InvalidOperation, ValueError):
+            quantized = Decimal("0").quantize(self._quant)
+        return format(quantized, f".{self.scale}f")
+
+    def process_result_value(self, value, dialect):  # type: ignore[override]
+        dec_value = self._coerce_decimal(value)
+        if dec_value is None:
+            return None
+        try:
+            return dec_value.quantize(self._quant)
+        except (InvalidOperation, ValueError):
+            return Decimal("0").quantize(self._quant)
+
+    def column_expression(self, column):  # type: ignore[override]
+        return cast(column, self._numeric)
+
+    def coerce_compared_value(self, op, value):  # type: ignore[override]
+        return self._numeric
 
 
 class CompanySettings(Base):
@@ -41,7 +107,7 @@ class Invoice(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
 
     # Legacy live-DB column; keep mapped & synced with gross_total
-    legacy_amount = Column("amount", Numeric(12, 2), nullable=True, server_default=text("0"))
+    legacy_amount = Column("amount", TextDecimal(12, 2), nullable=True, server_default=text("0"))
 
     invoice_no = Column(String(64), unique=True, nullable=False)
     issue_date = Column(Date, nullable=False, default=date.today)
@@ -57,9 +123,9 @@ class Invoice(Base):
     notes = Column(Text, default="")
     status = Column(String(16), nullable=False, default="SENT")  # DRAFT/SENT/PARTIAL/PAID/CLOSED
 
-    net_total = Column(Numeric(12, 2), nullable=False, default=0)
-    vat_total = Column(Numeric(12, 2), nullable=False, default=0)
-    gross_total = Column(Numeric(12, 2), nullable=False, default=0)
+    net_total = Column(TextDecimal(12, 2), nullable=False, default=0)
+    vat_total = Column(TextDecimal(12, 2), nullable=False, default=0)
+    gross_total = Column(TextDecimal(12, 2), nullable=False, default=0)
 
     # Stripe payment info
     stripe_payment_url = Column(Text)                 # final URL to send to client
@@ -107,7 +173,7 @@ class Payment(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     invoice_id = Column(BigInteger, ForeignKey("invoices.id"), nullable=True)
     date = Column(Date, nullable=False, default=date.today)
-    amount = Column(Numeric(12, 2), nullable=False)
+    amount = Column(TextDecimal(12, 2), nullable=False)
     method = Column(String(32), nullable=False, default="bank")  # bank, cash, western_union, other
     reference = Column(String(128))
     note = Column(Text)
