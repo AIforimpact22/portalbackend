@@ -65,12 +65,24 @@ def _build_customers_url_from_env():
     name = os.environ.get("CUSTOMERS_DB_NAME") or os.environ.get("DB_NAME")
     host = os.environ.get("CUSTOMERS_DB_HOST") or os.environ.get("DB_HOST")
     inst = os.environ.get("CUSTOMERS_INSTANCE_CONNECTION_NAME") or os.environ.get("INSTANCE_CONNECTION_NAME")
+    if inst:
+        inst = inst.strip()
+
+    # Some deployments repurpose *_INSTANCE_CONNECTION_NAME to hold a full DSN.
+    if inst and "://" in inst:
+        return inst
 
     if user and pwd and name and host:
         return f"postgresql+psycopg2://{user}:{quote_plus(pwd)}@{host}:5432/{name}"
     if user and pwd and name and inst:
         # App Engine Unix socket
         return f"postgresql+psycopg2://{user}:{quote_plus(pwd)}@/{name}?host=/cloudsql/{inst}"
+
+    # 3) Fall back to the primary DATABASE_URL when nothing else is configured
+    primary_url = os.environ.get("DATABASE_URL")
+    if primary_url:
+        return primary_url
+
     return None
 
 def get_customers_db():
