@@ -26,9 +26,47 @@ def _normalize_postgres_scheme(url: Optional[str]) -> Optional[str]:
     return url.replace("postgresql+psycopg2", "postgresql+psycopg")
 
 
+def _build_primary_url_from_env() -> str:
+    """Best-effort discovery of the primary database URL."""
+    candidates = (
+        "DATABASE_URL",
+        "SQLALCHEMY_DATABASE_URI",
+        "DB_URL",
+        "DATABASE_URI",
+    )
+    for key in candidates:
+        raw = os.environ.get(key)
+        if raw:
+            return _normalize_postgres_scheme(raw.strip())
+
+    user = os.environ.get("DB_USER")
+    password = os.environ.get("DB_PASSWORD") or os.environ.get("DB_PASS")
+    name = os.environ.get("DB_NAME")
+    host = (
+        os.environ.get("DB_HOST")
+        or os.environ.get("DB_SERVER")
+        or os.environ.get("DB_ADDRESS")
+    )
+    port = os.environ.get("DB_PORT", "5432").strip()
+
+    if user and password and name and host:
+        return f"postgresql+psycopg://{user}:{quote_plus(password)}@{host}:{port}/{name}"
+
+    inst = os.environ.get("INSTANCE_CONNECTION_NAME")
+    if inst and user and password and name:
+        inst = inst.strip()
+        if inst and "://" in inst:
+            return _normalize_postgres_scheme(inst)
+        if inst:
+            return (
+                f"postgresql+psycopg://{user}:{quote_plus(password)}@/{name}?host=/cloudsql/{inst}"
+            )
+
+    return f"sqlite:///{os.path.join(BASE_DIR, 'app.db')}"
+
+
 def get_database_url():
-    raw = os.environ.get("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'app.db')}")
-    return _normalize_postgres_scheme(raw)
+    return _build_primary_url_from_env()
 
 def flask_settings():
     return {
